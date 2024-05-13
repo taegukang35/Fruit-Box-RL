@@ -2,12 +2,6 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 import time
-from ray.rllib.utils import check_env
-
-from ray.rllib.algorithms.ppo import PPOConfig
-from ray import air
-from ray import tune
-config = PPOConfig()
 
 class AppleEnv(gym.Env):
   def __init__(self, render_mode=None, size=(9, 18), time_limit=90):
@@ -17,10 +11,10 @@ class AppleEnv(gym.Env):
     self.start_time = None
 
     self.action_space = spaces.Dict({
-        'x_top': spaces.Discrete(n=self.size[0]),
+        'x_top': spaces.Discrete(n=size[0]),
         'y_top': spaces.Discrete(n=size[1]),
-        'x_bottom': spaces.Discrete(n=size[0]),
-        'y_bottom': spaces.Discrete(n=size[1])
+        'x_bottom': spaces.Discrete(n=size[0], start=1),
+        'y_bottom': spaces.Discrete(n=size[1], start=1)
     })
 
     self.observation_space = spaces.Box(low=0, high=9, shape=self.size, dtype=np.int32)
@@ -51,34 +45,10 @@ class AppleEnv(gym.Env):
     x_bottom = action["x_bottom"]
     y_bottom = action["y_bottom"]
 
-    if np.sum(self.board[x_top:x_bottom + 1, y_top:y_bottom + 1]) == 10:
+    if np.sum(self.board[x_top:x_bottom, y_top:y_bottom]) == 10:
       # count number of nonzero
-      reward += np.count_nonzero(self.board[x_top:x_bottom + 1, y_top:y_bottom + 1])
+      reward += np.count_nonzero(self.board[x_top:x_bottom, y_top:y_bottom])
       # change matrix to zero
-      self.board[x_top:x_bottom + 1, y_top:y_bottom + 1] = 0
+      self.board[x_top:x_bottom, y_top:y_bottom] = 0
 
     return self.board, reward, done, False, {}
-
-env = AppleEnv(time_limit=5)
-
-# check_env(env)
-
-tuner = tune.Tuner(
-    "PPO",
-    tune_config=tune.TuneConfig(
-        metric="episode_reward_mean",
-    ),
-    param_space={
-        "env": env,
-        "kl_coeff": 1.0,
-        "num_workers": 1,
-        "num_cpus": 1,  # number of CPUs to use per trial
-        "num_gpus": 0,  # number of GPUs to use per trial
-        # These params are tuned from a fixed starting value.
-        "lambda": 0.99,
-        "clip_param": 0.2,
-        "lr": 1e-4,
-    },
-    run_config=air.RunConfig(stop={"training_iteration": 1000}),
-)
-results = tuner.fit()
