@@ -2,6 +2,12 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 import time
+from ray.rllib.utils import check_env
+
+from ray.rllib.algorithms.ppo import PPOConfig
+from ray import air
+from ray import tune
+config = PPOConfig()
 
 class AppleEnv(gym.Env):
   def __init__(self, render_mode=None, size=(9, 18), time_limit=90):
@@ -26,7 +32,7 @@ class AppleEnv(gym.Env):
       self.board[row, col] = np.random.randint(1, 10)
 
     self.start_time = time.time()
-    return self.board
+    return self.board, {}
 
 
   def step(self, action):
@@ -36,7 +42,7 @@ class AppleEnv(gym.Env):
       done = False
 
     if not (action["x_top"] < action["x_bottom"] and action["y_top"] < action["y_bottom"]):
-      return self.board, 0, done, {}
+      return self.board, 0, done, False, {}
 
     reward = 0
 
@@ -51,16 +57,28 @@ class AppleEnv(gym.Env):
       # change matrix to zero
       self.board[x_top:x_bottom + 1, y_top:y_bottom + 1] = 0
 
-    return self.board, reward, done, {}
+    return self.board, reward, done, False, {}
 
 env = AppleEnv(time_limit=5)
-env.reset()
-print(env.board)
 
-time.sleep(4)
-print(env.step(env.action_space.sample()))
-print(env.board)
+# check_env(env)
 
-time.sleep(2)
-print(env.step(env.action_space.sample()))
-print(env.board)
+tuner = tune.Tuner(
+    "PPO",
+    tune_config=tune.TuneConfig(
+        metric="episode_reward_mean",
+    ),
+    param_space={
+        "env": env,
+        "kl_coeff": 1.0,
+        "num_workers": 1,
+        "num_cpus": 1,  # number of CPUs to use per trial
+        "num_gpus": 0,  # number of GPUs to use per trial
+        # These params are tuned from a fixed starting value.
+        "lambda": 0.99,
+        "clip_param": 0.2,
+        "lr": 1e-4,
+    },
+    run_config=air.RunConfig(stop={"training_iteration": 1000}),
+)
+results = tuner.fit()
