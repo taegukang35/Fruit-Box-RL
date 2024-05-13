@@ -1,6 +1,6 @@
 from env import AppleEnv
 
-env = AppleEnv(time_limit=1)
+env = AppleEnv(time_limit=0.01)
 board, done = env.reset()
 
 G = 0
@@ -14,20 +14,20 @@ def bruteforce(n):
                     action = {'x_top':i, 'x_bottom':a, 'y_top':j, 'y_bottom':b}
                     board, reward, done, _, _  = env.step(action)
                     if reward > 0:
-                        print(board)
+                        # print(board)
                         G += reward 
-eps1 = 50
-eps2 = 80
+eps1 = 47
+eps2 = 83
 result = []
 for _ in range(100):
     while not done:
         if G < eps1:
-            bruteforce(3)
+            bruteforce(4)
         elif eps1 <= G < eps2:
-            bruteforce(5)
+            bruteforce(6)
         else:
-            bruteforce(10)
+            bruteforce(max(env.size))
     result.append(G)
     board, done = env.reset()
     G = 0
-print(result)
+print(sum(result)/len(result))
