@@ -2,6 +2,7 @@ import gymnasium as gym
 import numpy as np
 from gymnasium import spaces
 import time
+import os
 
 class AppleEnv(gym.Env):
   def __init__(self, render_mode=None, size=(9, 18), time_limit=90):
@@ -39,7 +40,6 @@ class AppleEnv(gym.Env):
       return self.board, 0, done, False, {}
 
     reward = 0
-
     x_top = action["x_top"]
     y_top = action["y_top"]
     x_bottom = action["x_bottom"]
@@ -52,3 +52,20 @@ class AppleEnv(gym.Env):
       self.board[x_top:x_bottom, y_top:y_bottom] = 0
 
     return self.board, reward, done, False, {}
+  
+  def render(self):
+    os.system('cls' if os.name == 'nt' else 'clear')
+    
+    print("   " + " ".join(f"{i:2}" for i in range(self.size[1])))
+    print("  +" + "---" * self.size[1] + "+")
+
+    for i in range(self.size[0]):
+        row_str = f"{i:2}|"
+        for j in range(self.size[1]):
+            cell_value = self.board[i, j]
+            cell_str = f"{cell_value:2}" if cell_value != 0 else " ."
+            row_str += f" {cell_str}"
+        row_str += " |"
+        print(row_str)
+    
+    print("  +" + "---" * self.size[1] + "+")
