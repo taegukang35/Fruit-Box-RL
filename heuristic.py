@@ -1,7 +1,9 @@
 from env import AppleEnv
+import time
 
-env = AppleEnv(time_limit=0.01)
+env = AppleEnv(time_limit=1)
 board, done = env.reset()
+env.render()
 
 G = 0
 
@@ -15,11 +17,16 @@ def bruteforce(n):
                     board, reward, done, _, _  = env.step(action)
                     if reward > 0:
                         # print(board)
+                        env.render()
                         G += reward 
 eps1 = 47
 eps2 = 83
 result = []
-for _ in range(100):
+
+# record start time
+time_start = time.thread_time()
+
+for _ in range(1):
     while not done:
         if G < eps1:
             bruteforce(4)
@@ -31,3 +38,10 @@ for _ in range(100):
     board, done = env.reset()
     G = 0
 print(sum(result)/len(result))
+
+# record end time
+time_end = time.thread_time()
+# calculate the duration
+time_duration = time_end - time_start
+# report the duration
+print(f'Took {time_duration:.3f} seconds')

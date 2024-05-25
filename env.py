@@ -10,6 +10,7 @@ class AppleEnv(gym.Env):
     self.time_limit = time_limit
     self.board = None
     self.start_time = None
+    self.elapsed_time = 0
 
     self.action_space = spaces.Dict({
         'x_top': spaces.Discrete(n=size[0]),
@@ -26,15 +27,20 @@ class AppleEnv(gym.Env):
     for row, col in zero_idx:
       self.board[row, col] = np.random.randint(1, 10)
 
-    self.start_time = time.time()
+    self.start_time = time.process_time()
+    self.elapsed_time = 0
     return self.board, {}
 
 
   def step(self, action):
-    if time.time() - self.start_time > self.time_limit:
-      done = True
-    else:
-      done = False
+    # Introduce a delay of 0.01 seconds to simulate action time
+    # time.sleep(0.01)
+
+    # Update the elapsed time
+    done = False
+    self.elapsed_time = time.process_time() - self.start_time
+    if self.elapsed_time >= self.time_limit:
+        done = True
 
     if not (action["x_top"] < action["x_bottom"] and action["y_top"] < action["y_bottom"]):
       return self.board, 0, done, False, {}
