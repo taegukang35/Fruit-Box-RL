@@ -54,8 +54,9 @@ def hash_string_md5(input_string):
     return md5_hash.hexdigest()
 
 class MCTS:
-    def __init__(self, max_iterations):
+    def __init__(self, max_iterations=1, max_depth=10):
         self.max_iterations = max_iterations
+        self.max_depth = max_depth
 
     def search(self, init_state: GameState):
         if init_state.is_terminal():
@@ -118,7 +119,7 @@ class MCTS:
     def rollout(self, node):
         current_state = node.state.clone()
         depth = 0 
-        while depth <= 20: #not current_state.is_terminal():                
+        while depth <= self.max_depth: #not current_state.is_terminal():                
             actions = current_state.get_legal_actions()
             if len(actions) == 0:
                 break
@@ -142,7 +143,7 @@ def main():
 
     while not state.is_terminal():
         state.print_board()
-        mcts = MCTS(max_iterations=1)
+        mcts = MCTS(max_iterations=3, max_depth=20)
         action = mcts.search(state)
         state.act(action)
         
