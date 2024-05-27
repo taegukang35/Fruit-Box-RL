@@ -11,7 +11,7 @@ class AppleEnv(gym.Env):
         self.board = None
         self.start_time = None
         self.elapsed_time = 0
-
+      
         self.action_space = spaces.Dict({
             'x_top': spaces.Discrete(n=size[0]),
             'y_top': spaces.Discrete(n=size[1]),
@@ -35,11 +35,11 @@ class AppleEnv(gym.Env):
     def step(self, action):
         # Update the elapsed time
         done = False
-        self.elapsed_time = time.process_time() - self.start_time
+        """self.elapsed_time = time.process_time() - self.start_time
         if self.elapsed_time >= self.time_limit:
-            done = True
-        if len(self.get_legal_actions()) == 0:
-            done = True
+            done = True"""
+        #if len(self.get_legal_actions()) == 0:
+        #    done = True
         if not (action["x_top"] < action["x_bottom"] and action["y_top"] < action["y_bottom"]):
             return self.board, 0, done, False, {}
 
