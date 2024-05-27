@@ -117,10 +117,14 @@ class MCTS:
 
     def rollout(self, node):
         current_state = node.state.clone()
-        while not current_state.is_terminal():
+        depth = 0 
+        while depth <= 20: #not current_state.is_terminal():                
             actions = current_state.get_legal_actions()
+            if len(actions) == 0:
+                break
             action = random.choice(actions)
             current_state.act(action)
+            depth += 1
 
         # total rewards 반환
         return current_state.total_rewards
