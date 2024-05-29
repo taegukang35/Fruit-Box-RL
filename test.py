@@ -4,7 +4,7 @@ import random
 
 env = AppleEnv()
 board, done = env.reset()
-env.render()
+# env.render()
 
 G = 0
 done = False
@@ -15,7 +15,10 @@ while not done:
     if len(actions) == 0:
         break
     action = random.choice(env.get_legal_actions())
+    #print(action)
     reward, done = env.step(action)[1:3]
     G += reward
     env.render()
+    #print(env.sum_matrix)
+    #break
 print(G)

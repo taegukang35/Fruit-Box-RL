@@ -11,15 +11,15 @@ class AppleEnv(gym.Env):
         self.board = None
         self.start_time = None
         self.elapsed_time = 0
-      
+        self.sum_matrix = None
+
+        self.observation_space = spaces.Box(low=0, high=9, shape=self.size, dtype=int)
         self.action_space = spaces.Dict({
             'x_top': spaces.Discrete(n=size[0]),
             'y_top': spaces.Discrete(n=size[1]),
             'x_bottom': spaces.Discrete(n=size[0], start=1),
             'y_bottom': spaces.Discrete(n=size[1], start=1)
         })
-
-        self.observation_space = spaces.Box(low=0, high=9, shape=self.size, dtype=np.int32)
 
     def reset(self, seed=None, options=None):
         self.board = self.observation_space.sample()
@@ -29,6 +29,18 @@ class AppleEnv(gym.Env):
 
         self.start_time = time.process_time()
         self.elapsed_time = 0
+        
+        # this is for obtain available actions
+        self.sum_matrix = np.zeros((self.size[0] + 1, self.size[1] + 1), dtype=int)
+        for i in range(1, self.size[0] + 1):
+            for j in range(1, self.size[1] + 1):
+                self.sum_matrix[i, j] = (
+                    self.board[i - 1, j - 1] +
+                    self.sum_matrix[i - 1, j] +
+                    self.sum_matrix[i, j - 1] -
+                    self.sum_matrix[i - 1, j - 1]
+                )
+        
         return self.board, {}
 
 
@@ -48,34 +60,38 @@ class AppleEnv(gym.Env):
         y_top = action["y_top"]
         x_bottom = action["x_bottom"]
         y_bottom = action["y_bottom"]
-
-        if np.sum(self.board[x_top:x_bottom, y_top:y_bottom]) == 10:
-          # count number of nonzero
-          reward += np.count_nonzero(self.board[x_top:x_bottom, y_top:y_bottom])
-          # change matrix to zero
-          self.board[x_top:x_bottom, y_top:y_bottom] = 0
-
+        total = (
+            self.sum_matrix[x_bottom, y_bottom] 
+            - self.sum_matrix[x_top, y_bottom] 
+            - self.sum_matrix[x_bottom, y_top] 
+            + self.sum_matrix[x_top, y_top]
+            )
+        if total == 10:
+            reward += np.count_nonzero(self.board[x_top:x_bottom, y_top:y_bottom])
+            self.board[x_top:x_bottom, y_top:y_bottom] = 0
         return self.board, reward, done, False, {}
     
     def get_legal_actions(self):
         actions = []
-        sum_matrix = np.zeros((self.size[0] + 1, self.size[1] + 1), dtype=int)
-        
         for i in range(1, self.size[0] + 1):
             for j in range(1, self.size[1] + 1):
-                sum_matrix[i, j] = (
+                self.sum_matrix[i, j] = (
                     self.board[i - 1, j - 1] +
-                    sum_matrix[i - 1, j] +
-                    sum_matrix[i, j - 1] -
-                    sum_matrix[i - 1, j - 1]
+                    self.sum_matrix[i - 1, j] +
+                    self.sum_matrix[i, j - 1] -
+                    self.sum_matrix[i - 1, j - 1]
                 )
 
         for x_top in range(self.size[0]):
             for y_top in range(self.size[1]):
                 for x_bottom in range(x_top + 1, self.size[0] + 1):
                     for y_bottom in range(y_top + 1, self.size[1] + 1):
-                        total = (sum_matrix[x_bottom, y_bottom] -sum_matrix[x_top, y_bottom] 
-                        - sum_matrix[x_bottom, y_top] + sum_matrix[x_top, y_top])
+                        total = (
+                            self.sum_matrix[x_bottom, y_bottom] 
+                            - self.sum_matrix[x_top, y_bottom] 
+                            - self.sum_matrix[x_bottom, y_top] 
+                            + self.sum_matrix[x_top, y_top]
+                            )
     
                         if total == 10:
                             action = {
@@ -91,7 +107,6 @@ class AppleEnv(gym.Env):
         return actions
 
 
-    
     def render(self):
         os.system('cls' if os.name == 'nt' else 'clear')
         
