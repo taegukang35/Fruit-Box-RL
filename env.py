@@ -42,7 +42,15 @@ class AppleEnv(gym.Env):
                 )
         
         return self.board, {}
-
+    
+    def get_sum(self, x_top, y_top, x_bottom, y_bottom):
+        total = (
+                self.sum_matrix[x_bottom, y_bottom] 
+                - self.sum_matrix[x_top, y_bottom] 
+                - self.sum_matrix[x_bottom, y_top] 
+                + self.sum_matrix[x_top, y_top]
+                )
+        return total
 
     def step(self, action):
         # Update the elapsed time
@@ -60,16 +68,12 @@ class AppleEnv(gym.Env):
         y_top = action["y_top"]
         x_bottom = action["x_bottom"]
         y_bottom = action["y_bottom"]
-        total = (
-            self.sum_matrix[x_bottom, y_bottom] 
-            - self.sum_matrix[x_top, y_bottom] 
-            - self.sum_matrix[x_bottom, y_top] 
-            + self.sum_matrix[x_top, y_top]
-            )
+        total = self.get_sum(x_top=x_top, y_top=y_top, x_bottom=x_bottom, y_bottom=y_bottom)
         if total == 10:
             reward += np.count_nonzero(self.board[x_top:x_bottom, y_top:y_bottom])
             self.board[x_top:x_bottom, y_top:y_bottom] = 0
         return self.board, reward, done, False, {}
+    
     
     def get_legal_actions(self):
         actions = []
@@ -86,14 +90,16 @@ class AppleEnv(gym.Env):
             for y_top in range(self.size[1]):
                 for x_bottom in range(x_top + 1, self.size[0] + 1):
                     for y_bottom in range(y_top + 1, self.size[1] + 1):
-                        total = (
-                            self.sum_matrix[x_bottom, y_bottom] 
-                            - self.sum_matrix[x_top, y_bottom] 
-                            - self.sum_matrix[x_bottom, y_top] 
-                            + self.sum_matrix[x_top, y_top]
-                            )
-    
+                        total = self.get_sum(x_top=x_top, y_top=y_top, x_bottom=x_bottom, y_bottom=y_bottom)
                         if total == 10:
+                            if self.get_sum(x_top, y_top, x_top+1, y_bottom) == 0:
+                                continue
+                            if self.get_sum(x_bottom-1, y_top,x_bottom, y_bottom) == 0:
+                                continue
+                            if self.get_sum(x_top, y_top, x_bottom, y_top+1) == 0:
+                                continue
+                            if self.get_sum(x_top, y_bottom-1, x_bottom, y_bottom) == 0:
+                                continue
                             action = {
                                 "x_top": x_top,
                                 "y_top": y_top,
