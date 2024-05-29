@@ -4,7 +4,8 @@ import random
 import time
 import math
 import hashlib
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ProcessPoolExecutor, as_completed
+import tqdm
 
 class TreeNode:
     def __init__(self, state, parent=None, action=None):
@@ -61,7 +62,7 @@ class MCTS:
         rootNode = TreeNode(init_state)
         self.add_child(rootNode)
 
-        for _ in range(self.max_iterations):
+        for _ in tqdm.tqdm(range(self.max_iterations)):
             current = rootNode
             while len(current.children) != 0:
                 current = self.select(current, ucb=True)
@@ -119,7 +120,7 @@ class MCTS:
         return current_state.total_rewards
 
     def rollout(self, node):
-        with ThreadPoolExecutor() as executor:
+        with ProcessPoolExecutor() as executor:
             futures = [executor.submit(self.rollout_single, node.state) for _ in range(self.num_rollouts)]
             results = [future.result() for future in as_completed(futures)]
         return results
@@ -136,7 +137,7 @@ def main():
 
     while not state.is_terminal():
         state.print_board()
-        mcts = MCTS(max_iterations=10, max_depth=20, num_rollouts=10)
+        mcts = MCTS(max_iterations=300, max_depth=50, num_rollouts=16)
         action = mcts.search(state)
         state.act(action)
         

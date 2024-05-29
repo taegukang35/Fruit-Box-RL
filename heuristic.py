@@ -19,8 +19,9 @@ def bruteforce(n):
                         # print(board)
                         env.render()
                         G += reward 
+                        env.render()
 eps1 = 47
-eps2 = 83
+eps2 = 80
 result = []
 
 # record start time
