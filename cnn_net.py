@@ -65,7 +65,7 @@ class CustomNetwork(TorchModelV2, nn.Module):
         in_channels = 2
 
         in_size = [w, h]
-        for out_channels, kernel, stride in filters[:-1]:
+        for out_channels, kernel, stride in filters:
             padding, out_size = same_padding(in_size, kernel, stride)
             layers.append(
                 SlimConv2d(
@@ -80,160 +80,82 @@ class CustomNetwork(TorchModelV2, nn.Module):
             in_channels = out_channels
             in_size = out_size
 
-        out_channels, kernel, stride = filters[-1]
+        layers.append(nn.Flatten())
+        in_channels = np.prod(in_size) * out_channels
 
-        # No final linear: Last layer has activation function and exits with
-        # num_outputs nodes (this could be a 1x1 conv or a FC layer, depending
-        # on `post_fcnet_...` settings).
-        if no_final_linear and num_outputs:
-            out_channels = out_channels if post_fcnet_hiddens else num_outputs
-            layers.append(
-                SlimConv2d(
-                    in_channels,
-                    out_channels,
-                    kernel,
-                    stride,
-                    None,  # padding=valid
-                    activation_fn=activation,
-                )
-            )
+        if post_fcnet_hiddens:
+            for size in post_fcnet_hiddens:
+                layers.append(SlimFC(in_channels, size, activation_fn=activation))
+                in_channels = size
 
-            # Add (optional) post-fc-stack after last Conv2D layer.
-            layer_sizes = post_fcnet_hiddens[:-1] + (
-                [num_outputs] if post_fcnet_hiddens else []
-            )
-            for i, out_size in enumerate(layer_sizes):
-                layers.append(
-                    SlimFC(
-                        in_size=out_channels,
-                        out_size=out_size,
-                        activation_fn=post_fcnet_activation,
-                        initializer=normc_initializer(1.0),
-                    )
-                )
-                out_channels = out_size
-
-        # Finish network normally (w/o overriding last layer size with
-        # `num_outputs`), then add another linear one of size `num_outputs`.
-        else:
-            layers.append(
-                SlimConv2d(
-                    in_channels,
-                    out_channels,
-                    kernel,
-                    stride,
-                    None,  # padding=valid
-                    activation_fn=activation,
-                )
-            )
-
-            # num_outputs defined. Use that to create an exact
-            # `num_output`-sized (1,1)-Conv2D.
-            if num_outputs:
-                in_size = [
-                    np.ceil((in_size[0] - kernel[0]) / stride),
-                    np.ceil((in_size[1] - kernel[1]) / stride),
-                ]
-                padding, _ = same_padding(in_size, [1, 1], [1, 1])
-                if post_fcnet_hiddens:
-                    layers.append(nn.Flatten())
-                    in_size = out_channels
-                    # Add (optional) post-fc-stack after last Conv2D layer.
-                    for i, out_size in enumerate(post_fcnet_hiddens + [num_outputs]):
-                        layers.append(
-                            SlimFC(
-                                in_size=in_size,
-                                out_size=out_size,
-                                activation_fn=post_fcnet_activation
-                                if i < len(post_fcnet_hiddens) - 1
-                                else None,
-                                initializer=normc_initializer(1.0),
-                            )
-                        )
-                        in_size = out_size
-                    # Last layer is logits layer.
-                    self._logits = layers.pop()
-
-                else:
-                    self._logits = SlimConv2d(
-                        out_channels,
-                        num_outputs,
-                        [1, 1],
-                        1,
-                        padding,
-                        activation_fn=None,
-                    )
-
-            # num_outputs not known -> Flatten, then set self.num_outputs
-            # to the resulting number of nodes.
-            else:
-                self.last_layer_is_flattened = True
-                layers.append(nn.Flatten())
+        self._logits = SlimFC(
+            in_channels, num_outputs, activation_fn=None
+        )
 
         self._convs = nn.Sequential(*layers)
 
         # If our num_outputs still unknown, we need to do a test pass to
         # figure out the output dimensions. This could be the case, if we have
         # the Flatten layer at the end.
-        if self.num_outputs is None:
-            # Create a B=1 dummy sample and push it through out conv-net.
-            dummy_in = (
-                torch.from_numpy(self.obs_space.sample())
-                .permute(2, 0, 1)
-                .unsqueeze(0)
-                .float()
-            )
-            dummy_out = self._convs(dummy_in)
-            self.num_outputs = dummy_out.shape[1]
+        # if self.num_outputs is None:
+        #     # Create a B=1 dummy sample and push it through out conv-net.
+        #     dummy_in = (
+        #         torch.from_numpy(self.obs_space.sample())
+        #         .permute(2, 0, 1)
+        #         .unsqueeze(0)
+        #         .float()
+        #     )
+        #     dummy_out = self._convs(dummy_in)
+        #     self.num_outputs = dummy_out.shape[1]
 
         # Build the value layers
-        self._value_branch_separate = self._value_branch = None
-        if vf_share_layers:
-            self._value_branch = SlimFC(
-                out_channels, 1, initializer=normc_initializer(0.01), activation_fn=None
-            )
-        else:
-            vf_layers = []
-            (w, h, in_channels) = obs_space.shape
-            in_size = [w, h]
-            for out_channels, kernel, stride in filters[:-1]:
-                padding, out_size = same_padding(in_size, kernel, stride)
-                vf_layers.append(
-                    SlimConv2d(
-                        in_channels,
-                        out_channels,
-                        kernel,
-                        stride,
-                        padding,
-                        activation_fn=activation,
-                    )
-                )
-                in_channels = out_channels
-                in_size = out_size
+        # self._value_branch_separate = self._value_branch = None
+        # if vf_share_layers:
+        #     self._value_branch = SlimFC(
+        #         out_channels, 1, initializer=normc_initializer(0.01), activation_fn=None
+        #     )
+        # else:
+        #     vf_layers = []
+        #     (w, h, in_channels) = obs_space.shape
+        #     in_size = [w, h]
+        #     for out_channels, kernel, stride in filters[:-1]:
+        #         padding, out_size = same_padding(in_size, kernel, stride)
+        #         vf_layers.append(
+        #             SlimConv2d(
+        #                 in_channels,
+        #                 out_channels,
+        #                 kernel,
+        #                 stride,
+        #                 padding,
+        #                 activation_fn=activation,
+        #             )
+        #         )
+        #         in_channels = out_channels
+        #         in_size = out_size
 
-            out_channels, kernel, stride = filters[-1]
-            vf_layers.append(
-                SlimConv2d(
-                    in_channels,
-                    out_channels,
-                    kernel,
-                    stride,
-                    None,
-                    activation_fn=activation,
-                )
-            )
+        #     out_channels, kernel, stride = filters[-1]
+        #     vf_layers.append(
+        #         SlimConv2d(
+        #             in_channels,
+        #             out_channels,
+        #             kernel,
+        #             stride,
+        #             None,
+        #             activation_fn=activation,
+        #         )
+        #     )
 
-            vf_layers.append(
-                SlimConv2d(
-                    in_channels=out_channels,
-                    out_channels=1,
-                    kernel=1,
-                    stride=1,
-                    padding=None,
-                    activation_fn=None,
-                )
-            )
-            self._value_branch_separate = nn.Sequential(*vf_layers)
+        #     vf_layers.append(
+        #         SlimConv2d(
+        #             in_channels=out_channels,
+        #             out_channels=1,
+        #             kernel=1,
+        #             stride=1,
+        #             padding=None,
+        #             activation_fn=None,
+        #         )
+        #     )
+        #     self._value_branch_separate = nn.Sequential(*vf_layers)
 
         # Holds the current "base" output (before logits layer).
         self._features = None
@@ -247,12 +169,13 @@ class CustomNetwork(TorchModelV2, nn.Module):
     ) -> (TensorType, List[TensorType]):
         self._features = input_dict["obs"].float()
         # Permuate b/c data comes in as [B, dim, dim, channels]:
-        self._features = self._features.permute(0, 3, 1, 2)
+        # self._features = self._features.permute(0, 3, 1, 2)
+        self._features = self._features.unsqueeze(1)
         filter_out = torch.cat([f(self._features) for f in self.initial_filter], dim=1)
         conv_out = self._convs(filter_out)
         # Store features to save forward pass when getting value_function out.
-        if not self._value_branch_separate:
-            self._features = conv_out
+        # if not self._value_branch_separate:
+        #     self._features = conv_out
 
         if not self.last_layer_is_flattened:
             if self._logits:

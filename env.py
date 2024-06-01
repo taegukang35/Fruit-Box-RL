@@ -38,8 +38,8 @@ class AppleEnv(gym.Env):
         self.elapsed_time = time.process_time() - self.start_time
         if self.elapsed_time >= self.time_limit:
             done = True
-        if len(self.get_legal_actions()) == 0:
-            done = True
+        # if len(self.get_legal_actions()) == 0:
+        #     done = True
         if not (action["x_top"] < action["x_bottom"] and action["y_top"] < action["y_bottom"]):
             return self.board, 0, done, False, {}
 

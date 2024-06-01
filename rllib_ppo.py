@@ -6,7 +6,7 @@ from ray import tune
 tuner = tune.Tuner(
     "PPO",
     tune_config=tune.TuneConfig(
-        metric="episode_reward_mean",
+        metric="env_runners/episode_reward_mean",
     ),
     param_space={
         "env": AppleEnv,

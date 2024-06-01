@@ -10,6 +10,7 @@ tuner = tune.Tuner(
     ),
     param_space={
         "env": AppleEnv,
+        "env_config": {"time_limit": 10},
         "kl_coeff": 1.0,
         "num_workers": 1,
         "num_cpus": 8,  # number of CPUs to use per trial

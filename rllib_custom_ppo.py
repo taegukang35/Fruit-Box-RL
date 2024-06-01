@@ -4,6 +4,7 @@ from mlp_net import FullyConnectedNetwork
 from mask_net import MaskNetwork
 from ray.rllib.algorithms.ppo import PPOConfig
 from ray.rllib.models import ModelCatalog
+from ray.tune.registry import register_env
 from ray import air
 from ray import tune
 from ray.tune.logger import pretty_print
@@ -13,6 +14,7 @@ from gymnasium import spaces
 import numpy as np
 
 ModelCatalog.register_custom_model("custom", CustomNetwork)
+register_env("AppleEnv", lambda config: AppleEnv(config))
 
 tuner = tune.Tuner(
     "PPO",
@@ -20,7 +22,7 @@ tuner = tune.Tuner(
         metric="env_runners/episode_reward_mean",
     ),
     param_space={
-        "env": AppleEnv,
+        "env": "AppleEnv",
         "env_config": {
             "time_limit": 10
         },
@@ -35,7 +37,7 @@ tuner = tune.Tuner(
         "model": {
             "custom_model": "custom",
             "conv_filters": [[4, [4, 4], 1], [16, [8, 8], 1]],
-            "vf_share_layers": False
+            "fcnet_hiddens": [256, 256]
         }
     },
     run_config=air.RunConfig(stop={"training_iteration": 10000}),
