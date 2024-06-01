@@ -37,6 +37,7 @@ class AppleEnv(gym.Env):
         done = False
         self.elapsed_time = time.process_time() - self.start_time
         if self.elapsed_time >= self.time_limit:
+            print("Time limit exceeded!")
             done = True
         # if len(self.get_legal_actions()) == 0:
         #     done = True
