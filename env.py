@@ -42,7 +42,7 @@ class AppleEnv(gym.Env):
         # if len(self.get_legal_actions()) == 0:
         #     done = True
         if not (action["x_top"] < action["x_bottom"] and action["y_top"] < action["y_bottom"]):
-            return self.board, 0, done, False, {}
+            return self.board, -1, done, False, {}
 
         reward = 0
         x_top = action["x_top"]

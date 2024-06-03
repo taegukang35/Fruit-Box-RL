@@ -36,10 +36,10 @@ tuner = tune.Tuner(
         "lr": 1e-4,
         "model": {
             "custom_model": "custom",
-            "conv_filters": [[4, [4, 4], 1], [16, [8, 8], 1]],
+            "conv_filters": [[4, [4, 4], 1], [16, [8, 8], 1], [32, [4, 4], 1], [1, [4, 4], 1]],
             "fcnet_hiddens": [256, 256]
         }
     },
-    run_config=air.RunConfig(stop={"training_iteration": 10000}),
+    run_config=air.RunConfig(stop={"training_iteration": 100}),
 )
 results = tuner.fit()

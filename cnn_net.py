@@ -51,7 +51,8 @@ class CustomNetwork(TorchModelV2, nn.Module):
         # a n x (1,1) Conv2D).
         self.last_layer_is_flattened = False
         self._logits = None
-
+        
+        # Initial adjacent-summation filter
         self.initial_filter = []
         init_kernels = [(1, 2), (2, 1)]
         for kernel in init_kernels:
@@ -63,6 +64,7 @@ class CustomNetwork(TorchModelV2, nn.Module):
         layers = []
         (w, h) = obs_space.shape
         in_channels = 2
+        # in_channels = 1
 
         in_size = [w, h]
         for out_channels, kernel, stride in filters:
@@ -85,7 +87,7 @@ class CustomNetwork(TorchModelV2, nn.Module):
 
         if post_fcnet_hiddens:
             for size in post_fcnet_hiddens:
-                layers.append(SlimFC(in_channels, size, activation_fn=activation))
+                layers.append(SlimFC(in_channels, size, activation_fn=post_fcnet_activation))
                 in_channels = size
 
         self._logits = SlimFC(
@@ -94,70 +96,6 @@ class CustomNetwork(TorchModelV2, nn.Module):
 
         self._convs = nn.Sequential(*layers)
 
-        # If our num_outputs still unknown, we need to do a test pass to
-        # figure out the output dimensions. This could be the case, if we have
-        # the Flatten layer at the end.
-        # if self.num_outputs is None:
-        #     # Create a B=1 dummy sample and push it through out conv-net.
-        #     dummy_in = (
-        #         torch.from_numpy(self.obs_space.sample())
-        #         .permute(2, 0, 1)
-        #         .unsqueeze(0)
-        #         .float()
-        #     )
-        #     dummy_out = self._convs(dummy_in)
-        #     self.num_outputs = dummy_out.shape[1]
-
-        # Build the value layers
-        # self._value_branch_separate = self._value_branch = None
-        # if vf_share_layers:
-        #     self._value_branch = SlimFC(
-        #         out_channels, 1, initializer=normc_initializer(0.01), activation_fn=None
-        #     )
-        # else:
-        #     vf_layers = []
-        #     (w, h, in_channels) = obs_space.shape
-        #     in_size = [w, h]
-        #     for out_channels, kernel, stride in filters[:-1]:
-        #         padding, out_size = same_padding(in_size, kernel, stride)
-        #         vf_layers.append(
-        #             SlimConv2d(
-        #                 in_channels,
-        #                 out_channels,
-        #                 kernel,
-        #                 stride,
-        #                 padding,
-        #                 activation_fn=activation,
-        #             )
-        #         )
-        #         in_channels = out_channels
-        #         in_size = out_size
-
-        #     out_channels, kernel, stride = filters[-1]
-        #     vf_layers.append(
-        #         SlimConv2d(
-        #             in_channels,
-        #             out_channels,
-        #             kernel,
-        #             stride,
-        #             None,
-        #             activation_fn=activation,
-        #         )
-        #     )
-
-        #     vf_layers.append(
-        #         SlimConv2d(
-        #             in_channels=out_channels,
-        #             out_channels=1,
-        #             kernel=1,
-        #             stride=1,
-        #             padding=None,
-        #             activation_fn=None,
-        #         )
-        #     )
-        #     self._value_branch_separate = nn.Sequential(*vf_layers)
-
-        # Holds the current "base" output (before logits layer).
         self._features = None
 
     @override(TorchModelV2)
@@ -168,14 +106,10 @@ class CustomNetwork(TorchModelV2, nn.Module):
         seq_lens: TensorType,
     ) -> (TensorType, List[TensorType]):
         self._features = input_dict["obs"].float()
-        # Permuate b/c data comes in as [B, dim, dim, channels]:
-        # self._features = self._features.permute(0, 3, 1, 2)
         self._features = self._features.unsqueeze(1)
         filter_out = torch.cat([f(self._features) for f in self.initial_filter], dim=1)
         conv_out = self._convs(filter_out)
-        # Store features to save forward pass when getting value_function out.
-        # if not self._value_branch_separate:
-        #     self._features = conv_out
+        # conv_out = self._convs(self._features)
 
         if not self.last_layer_is_flattened:
             if self._logits:
