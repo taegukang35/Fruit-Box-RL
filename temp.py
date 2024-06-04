@@ -16,3 +16,4 @@ board = np.random.randint(1, 10, (9, 18))
 
 boxes = sum_boxes(board)
 print(len(boxes))
+print('hehe')
