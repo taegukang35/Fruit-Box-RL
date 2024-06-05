@@ -12,6 +12,7 @@ class AppleEnv(gym.Env):
         self.start_time = None
         self.elapsed_time = 0
         self.sum_matrix = None
+        self.legal_actions = []
 
         self.observation_space = spaces.Box(low=0, high=9, shape=self.size, dtype=int)
         self.action_space = spaces.Dict({
@@ -74,9 +75,11 @@ class AppleEnv(gym.Env):
             self.board[x_top:x_bottom, y_top:y_bottom] = 0
         return self.board, reward, done, False, {}
     
-    
+        
     def get_legal_actions(self):
         actions = []
+        
+        self.sum_matrix = np.zeros((self.size[0] + 1, self.size[1] + 1), dtype=int)
         for i in range(1, self.size[0] + 1):
             for j in range(1, self.size[1] + 1):
                 self.sum_matrix[i, j] = (

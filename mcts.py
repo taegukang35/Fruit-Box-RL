@@ -22,16 +22,19 @@ class GameState:
         self.env.reset()
         self.board = self.env.board
         self.total_rewards = 0
+        self.depth = 0
         
     def clone(self):
         clone_state = GameState()
         clone_state.board = self.board
         clone_state.total_rewards = self.total_rewards
+        clone_state.depth = self.depth
         return clone_state
 
     def act(self, action):
         self.board, reward, done, truncated, _ = self.env.step(action)
         self.total_rewards += reward
+        self.depth += 1
         return self.board, reward, done, truncated, {}
     
     def get_legal_actions(self):
@@ -109,14 +112,12 @@ class MCTS:
 
     def rollout_single(self, state):
         current_state = state.clone()
-        depth = 0
-        while depth <= self.max_depth:
+        while current_state.depth <= self.max_depth:
             actions = current_state.get_legal_actions()
             if len(actions) == 0:
                 break
             action = random.choice(actions)
             current_state.act(action)
-            depth += 1
         return current_state.total_rewards
 
     def rollout(self, node):
@@ -137,7 +138,7 @@ def main():
 
     while not state.is_terminal():
         state.print_board()
-        mcts = MCTS(max_iterations=300, max_depth=50, num_rollouts=16)
+        mcts = MCTS(max_iterations=10, max_depth=10000, num_rollouts=16)
         action = mcts.search(state)
         state.act(action)
         
