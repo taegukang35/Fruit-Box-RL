@@ -125,7 +125,8 @@ class MCTS:
 
         return node.children[max_key]
 
-    def rollout_single(self, state):
+    def rollout_single(self, state, seed):
+        rng = random.Random(seed)
         current_state = state.clone()
         while current_state.depth <= self.max_depth:
             actions = current_state.get_legal_actions()
@@ -136,8 +137,9 @@ class MCTS:
         return current_state.total_rewards
 
     def rollout(self, node):
+        seeds = [random.randint(0, 1_000_000) for _ in range(self.num_rollouts)]
         with ProcessPoolExecutor() as executor:
-            futures = [executor.submit(self.rollout_single, node.state) for _ in range(self.num_rollouts)]
+            futures = [executor.submit(self.rollout_single, node.state, seed) for seed in seeds]
             results = [future.result() for future in as_completed(futures)]
         return results
 
@@ -150,7 +152,7 @@ class MCTS:
 
 num_worker = [1, 16, 32]
 max_iter = [100, 200, 500, 1000]
-criteria = ["avg","visit", "avg"]
+criteria = ["visit", "avg"]
 
 def main():
     for c in criteria:
@@ -163,7 +165,7 @@ def main():
                     action = mcts.search(state, criteria=c)
                     state.act(action)
                     
-                state.print_board()
+                # state.print_board()
                 print(f"criteria: {c}, num_worker: {n}, num_iter: {i}, rewards: {state.total_rewards}")
 
 if __name__ == "__main__":
