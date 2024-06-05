@@ -17,9 +17,9 @@ class TreeNode:
         self.children = {}  # key: board 상태, value: board 상태에 대응되는 TreeNode
 
 class GameState:
-    def __init__(self):
+    def __init__(self, seed=None):
         self.env = AppleEnv()
-        self.env.reset()
+        self.env.reset(seed=seed)
         self.board = self.env.board
         self.total_rewards = 0
         self.depth = 0
@@ -58,7 +58,7 @@ class MCTS:
         self.max_depth = max_depth
         self.num_rollouts = num_rollouts
 
-    def search(self, init_state: GameState):
+    def search(self, init_state: GameState, criteria="avg"):
         if init_state.is_terminal():
             return -1
 
@@ -68,7 +68,7 @@ class MCTS:
         for _ in tqdm.tqdm(range(self.max_iterations)):
             current = rootNode
             while len(current.children) != 0:
-                current = self.select(current, ucb=True)
+                current = self.select(current, criteria="ucb")
 
             if current.visits == 0:
                 rewards = self.rollout(current)
@@ -82,7 +82,7 @@ class MCTS:
                 for reward in rewards:
                     self.backpropagate(current, reward)
 
-        best_child = self.select(rootNode, ucb=False)
+        best_child = self.select(rootNode, criteria=criteria)
         return best_child.action
 
     def add_child(self, node):
@@ -94,19 +94,34 @@ class MCTS:
                 new_node = TreeNode(new_state, parent=node, action=action)
                 node.children[hash_string_md5(str(new_state.board))] = new_node
 
-    def select(self, node, ucb=True):
-        max_ucb = -float('inf')
+    def select(self, node, criteria="ucb"):
         max_key = None
+        max_ucb = -float('inf')
+        
+        if criteria == "ucb":
+            for key, child in node.children.items():
+                ucb_val = float('inf') if child.visits == 0 else (
+                    child.score / child.visits +
+                    (math.sqrt(math.log(node.visits) / child.visits) * 1.41)
+                )
 
-        for key, child in node.children.items():
-            ucb_val = float('inf') if child.visits == 0 else (
-                child.score / child.visits +
-                (math.sqrt(math.log(node.visits) / child.visits) * (1.41 if ucb else 0))
-            )
+                if ucb_val > max_ucb:
+                    max_ucb = ucb_val
+                    max_key = key
+                    
+        elif criteria == "visit":
+            for key, child in node.children.items():
+                ucb_val = node.visits
+                if ucb_val > max_ucb:
+                    max_ucb = ucb_val
+                    max_key = key
+        else: # avg
+            for key, child in node.children.items():
+                ucb_val = float('inf') if child.visits == 0 else child.score / child.visits
 
-            if ucb_val > max_ucb:
-                max_ucb = ucb_val
-                max_key = key
+                if ucb_val > max_ucb:
+                    max_ucb = ucb_val
+                    max_key = key
 
         return node.children[max_key]
 
@@ -133,17 +148,23 @@ class MCTS:
             node = node.parent
         node.visits += 1
 
-def main():
-    state = GameState()
+num_worker = [1, 16, 32]
+max_iter = [100, 200, 500, 1000]
+criteria = ["avg","visit", "avg"]
 
-    while not state.is_terminal():
-        state.print_board()
-        mcts = MCTS(max_iterations=10, max_depth=10000, num_rollouts=16)
-        action = mcts.search(state)
-        state.act(action)
-        
-    state.print_board()
-    print("Total rewards:", state.total_rewards)
+def main():
+    for c in criteria:
+        for i in max_iter:
+            for n in num_worker:
+                state = GameState(seed=1)
+                while not state.is_terminal():
+                    # state.print_board()
+                    mcts = MCTS(max_iterations=i, max_depth=10000, num_rollouts=n)
+                    action = mcts.search(state, criteria=c)
+                    state.act(action)
+                    
+                state.print_board()
+                print(f"criteria: {c}, num_worker: {n}, num_iter: {i}, rewards: {state.total_rewards}")
 
 if __name__ == "__main__":
     main()

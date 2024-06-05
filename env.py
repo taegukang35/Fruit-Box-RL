@@ -23,10 +23,9 @@ class AppleEnv(gym.Env):
         })
 
     def reset(self, seed=None, options=None):
-        self.board = self.observation_space.sample()
-        zero_idx = np.argwhere(self.board == 0)
-        for row, col in zero_idx:
-          self.board[row, col] = np.random.randint(1, 10)
+        if seed is not None:
+            np.random.seed(seed)
+        self.board = np.random.choice(np.arange(1, 10), size=self.size)
 
         self.start_time = time.process_time()
         self.elapsed_time = 0
@@ -116,8 +115,9 @@ class AppleEnv(gym.Env):
         return actions
 
 
-    def render(self):
-        os.system('cls' if os.name == 'nt' else 'clear')
+    def render(self, clear=True):
+        if clear:
+            os.system('cls' if os.name == 'nt' else 'clear')
         
         print("   " + " ".join(f"{i:2}" for i in range(self.size[1])))
         print("  +" + "---" * self.size[1] + "+")

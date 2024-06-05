@@ -1,6 +1,8 @@
 from env import AppleEnv
 import time
 import random
+import numpy as np
+np.random.seed(42)
 
 env = AppleEnv()
 board, done = env.reset()
@@ -8,6 +10,7 @@ board, done = env.reset()
 
 G = 0
 done = False
+    
 while not done:
     actions = env.get_legal_actions()
     # print(actions)
